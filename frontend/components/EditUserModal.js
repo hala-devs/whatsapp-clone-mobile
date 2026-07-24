@@ -1,5 +1,4 @@
-import { View, Text } from 'react-native';
-import { useRef } from 'react';
+import React, { useRef } from 'react';
 import { Button, Modal, FormControl, Input } from 'native-base';
 import * as Yup from 'yup';
 import { useStore } from '../libs/state';
@@ -12,16 +11,12 @@ export default function EditUserModal(props) {
   const initialModalRef = useRef(null);
   const finalModalRef = useRef(null);
 
-  // ✅ تحقق من وجود user قبل استخدامه
-  if (!user) {
-    return null; // أو رسالة تحميل
-  }
-
   const formik = useFormik({
+    enableReinitialize: true,
     initialValues: {
-      firstName: user?.firstName || '', // ✅ استخدم ?. للتحقق
-      lastName: user?.lastName || '',   // ✅ استخدم ?. للتحقق
-      status: user?.status || '',       // ✅ استخدم ?. للتحقق
+      firstName: user?.firstName || '',
+      lastName: user?.lastName || '',
+      status: user?.status || '',
     },
     validationSchema: Yup.object({
       firstName: Yup.string(),
@@ -30,9 +25,10 @@ export default function EditUserModal(props) {
     }),
     async onSubmit(values) {
       try {
+        const authHeader = token?.startsWith('Bearer ') ? token : `Bearer ${token}`;
         const response = await axios.put('/user', values, {
           headers: {
-            Authorization: `Bearer ${token}`, // ✅ أضف Bearer
+            Authorization: authHeader,
           },
         });
         setUser(response.data);
@@ -42,6 +38,10 @@ export default function EditUserModal(props) {
       }
     },
   });
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <Modal
@@ -64,7 +64,7 @@ export default function EditUserModal(props) {
             />
           </FormControl>
 
-          <FormControl mt='3'>
+          <FormControl mt="3">
             <FormControl.Label>Last Name</FormControl.Label>
             <Input
               value={formik.values.lastName}
@@ -72,7 +72,7 @@ export default function EditUserModal(props) {
             />
           </FormControl>
 
-          <FormControl mt='3'>
+          <FormControl mt="3">
             <FormControl.Label>Status</FormControl.Label>
             <Input
               value={formik.values.status}
@@ -85,15 +85,16 @@ export default function EditUserModal(props) {
           <Button.Group space={2}>
             <Button
               onPress={props.closeModal}
-              bg='#0e806a'
-              _hover={{ bg: 'green.700' }}
+              variant="ghost"
+              colorScheme="coolGray"
             >
               Cancel
             </Button>
             <Button
               onPress={formik.submitForm}
-              bg='#0e806a'
-              _hover={{ bg: 'green.700' }}
+              isLoading={formik.isSubmitting}
+              bg="#0e806a"
+              _pressed={{ bg: '#075e54' }}
             >
               Save
             </Button>

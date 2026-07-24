@@ -9,7 +9,6 @@ import messageRouter from "./routes/message.js";
 import Message from "./models/Message.js";
 
 const app = express();
-
 const PORT = 8000;
 
 const server = http.createServer(app);
@@ -21,7 +20,7 @@ export const io = new Server(server, {
 
 io.use(isSocketAuth);
 
-app.use(express.static("public"));
+app.use("/uploads", express.static("public/uploads"));
 app.use(express.json());
 app.use(
   cors({
@@ -31,6 +30,7 @@ app.use(
 
 app.use("/user", userRouter);
 app.use("/message", isAuth, messageRouter);
+
 app.get("/", (req, res) => {
   res.send("Hello World");
 });
@@ -39,9 +39,6 @@ app.get("/secret", isAuth, (req, res) => {
   res.send({ msg: req.userId });
 });
 
-server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
 connectDB();
 
 io.on("connection", (socket) => {
@@ -51,26 +48,45 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log("a user disconnected: ", socket.id);
   });
-  socket.on("send_message", async ({ receiverId, content }) => {
-    const senderId = socket.userId;
-    const message = await Message.create({ senderId, receiverId, content });
-    io.to([receiverId, senderId]).emit("receive_message", message);
-  });
-  socket.on("typing", (receiverId)=>{
-    socket.to(receiverId).emit("typing", socket.userId)
-  })
 
-  socket.on("stop_typing", (receiverId)=>{
+  socket.on("send_message", async ({ receiverId, content }) => {
+    try {
+      const senderId = socket.userId;
+      const message = await Message.create({ senderId, receiverId, content });
+      
+      // إرسال للطرفين بأسلوب أضمن
+      io.to(receiverId).to(senderId).emit("receive_message", message);
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  });
+
+  socket.on("typing", (receiverId) => {
+    socket.to(receiverId).emit("typing", socket.userId);
+  });
+
+  socket.on("stop_typing", (receiverId) => {
     socket.to(receiverId).emit("stop_typing", socket.userId);
   });
-  socket.on("seen", async(receiverId)=>{
-    const senderId = socket.userId
-    await Message.updateMany({senderId,  receiverId, seen: false},
-      {seen: true},
-      {multi: true}
-    ).exec();
 
-      io.emit("seen", senderId);
-    
+  socket.on("seen", async (chatPartnerId) => {
+    try {
+      const currentUserId = socket.userId;
+      
+      // تعديل الرسائل الواردة من الشريك القادمة إلى المستخدم الحالي
+      await Message.updateMany(
+        { senderId: chatPartnerId, receiverId: currentUserId, seen: false },
+        { $set: { seen: true } }
+      );
+
+      // تنبيه الشريك الآخر بأن رسائله قرأت
+      io.to(chatPartnerId).emit("seen", currentUserId);
+    } catch (error) {
+      console.error("Error updating seen status:", error);
+    }
   });
+});
+
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server is running on port ${PORT}`);
 });

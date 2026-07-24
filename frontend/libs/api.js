@@ -1,6 +1,13 @@
 import axios from "axios";
-import { API_URL } from '@env';
 
-axios.defaults.baseURL = API_URL;
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://192.168.8.101:8000";
 
-export default axios;
+const api = axios.create({
+  baseURL: API_URL,
+  timeout: 10000,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+export default api;

@@ -11,7 +11,7 @@ export const useStore = create((set) => ({
 
   // قائمة الأصدقاء
   friends: [],
-  setFriends: (friends) => set({ friends }),
+  setFriends: (friends) => set({ friends: Array.isArray(friends) ? friends : [] }),
 
   // اتصال الـ socket
   socket: null,
